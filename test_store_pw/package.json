@@ -1,0 +1,20 @@
+{
+  "name": "tool_shop_pw",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+   "full:test" : "npx playwright test",
+   "ui:test" : "npx playwright test --ui",
+   "full:test:chromium" : "npx playwright test --project=chromium",
+   "full:test:debug" : "npx playwright test --debug",
+   "codegen" : "npx playwright codegen"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@types/node": "^24.0.15"
+  }
+}

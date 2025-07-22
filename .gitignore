@@ -2,6 +2,8 @@
 /node_modules/
 /test-results/
 /playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # Archivos de configuración temporales
 .env
