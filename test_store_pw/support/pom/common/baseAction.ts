@@ -1,4 +1,5 @@
 import { Page } from "@playwright/test";
+import { BasePage } from "./basePage";
 
 export abstract class BaseAction {
   protected readonly page: Page;

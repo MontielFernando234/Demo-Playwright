@@ -3,18 +3,20 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-   "full:test" : "npx playwright test",
-   "ui:test" : "npx playwright test --ui",
-   "full:test:chromium" : "npx playwright test --project=chromium",
-   "full:test:debug" : "npx playwright test --debug",
-   "codegen" : "npx playwright codegen"
+    "full:test": "playwright test",
+    "ui:test": "playwright test --ui",
+    "full:test:chromium": "playwright test --project=chromium",
+    "full:test:debug": "playwright test --debug",
+    "codegen": "playwright codegen",
+    "open:report": "playwright show-report"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
     "@playwright/test": "^1.54.1",
-    "@types/node": "^24.0.15"
+    "@types/node": "^24.1.0"
   }
 }

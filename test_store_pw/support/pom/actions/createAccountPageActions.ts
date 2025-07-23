@@ -11,6 +11,10 @@ export class CreateAccountPageActions extends BaseAction {
     this.createAccountPage = new CreateAccountPage(page);
   }
 
+  getCreateAccountPage(): CreateAccountPage {
+    return this.createAccountPage;
+  }
+  
   async fillCreateAccountForm(data : AccountData): Promise<void> {
     await this.createAccountPage.firstNameInput.fill(data.firstName);
     await this.createAccountPage.lastNameInput.fill(data.lastName);
@@ -37,7 +41,9 @@ export class CreateAccountPageActions extends BaseAction {
     if (data.privacyPolicy) {
       await this.createAccountPage.privacyPolicyCheckbox.check();
     }
+  }
 
+  async submitCreateAccountForm(): Promise<void> {
     await this.createAccountPage.continueButton.click();
   }
 }
