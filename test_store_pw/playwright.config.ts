@@ -31,7 +31,7 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     baseURL: process.env.BASE_URL || 'https://automationteststore.com',
-    headless: true //process.env.HEADLESS ? process.env.HEADLESS === 'true' : true, // Run tests in headless mode by default
+    headless: process.env.HEADLESS ? process.env.HEADLESS === 'true' : false, // Run tests in headless mode by default
   },
 
   /* Configure projects for major browsers */

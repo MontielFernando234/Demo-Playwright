@@ -1,7 +1,8 @@
 import { Page, Locator } from "@playwright/test";
+import { BasePage } from "../common/basePage";
 
-export class CreateAccountPage {
-  private readonly page: Page;
+export class CreateAccountPage extends BasePage {
+  readonly title: Locator;
   readonly firstNameInput: Locator;
   readonly lastNameInput: Locator;
   readonly emailInput: Locator;
@@ -23,7 +24,8 @@ export class CreateAccountPage {
   readonly continueButton: Locator;
 
   constructor(page: Page) {
-    this.page = page;
+    super(page);
+    this.title = page.locator("h1.heading1");
     this.firstNameInput = page.locator("input[name='firstname']");
     this.lastNameInput = page.locator("input[name='lastname']");
     this.emailInput = page.locator("#AccountFrm_email");
