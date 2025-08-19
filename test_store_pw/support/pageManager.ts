@@ -3,19 +3,15 @@ import {LoginPageActions} from './pom/actions/loginPageActions';
 import {CreateAccountPageActions} from './pom/actions/createAccountPageActions';
 import {AccountSuccessActions} from './pom/actions/accountSuccessActions';
 import {MyAccountActions} from './pom/actions/myAccountActions';
+import { BaseAction } from './pom/common/baseAction';
 import {Urls} from './urls';
 
 export class PageManager {
-  private loginPageActions: LoginPageActions;
-  private createAccountPageActions: CreateAccountPageActions;
-  private accountSuccessActions: AccountSuccessActions;
-  private myAccountActions: MyAccountActions;
+  private baseAction : BaseAction;
+  private readonly page : Page;
 
-  constructor(private page: Page) {
-    this.loginPageActions = new LoginPageActions(page);
-    this.createAccountPageActions = new CreateAccountPageActions(page);
-    this.accountSuccessActions = new AccountSuccessActions(page);
-    this.myAccountActions = new MyAccountActions(page);
+  constructor(page: Page) {
+    this.page = page;
   }
 
   async navigateTo(url : Urls) {
@@ -24,21 +20,21 @@ export class PageManager {
 
   // Actions for Login Page
   getLoginPageActions(): LoginPageActions {
-    return this.loginPageActions;
+    return this.baseAction = new LoginPageActions(this.page);
   }
 
   // Actions for Create Account Page
   getCreateAccountPageActions(): CreateAccountPageActions {
-    return this.createAccountPageActions;
+    return this.baseAction = new CreateAccountPageActions(this.page);
   }
 
   // Actions for Account Success Page
   getAccountSuccessActions(): AccountSuccessActions {
-    return this.accountSuccessActions;
+    return this.baseAction = new AccountSuccessActions(this.page);
   }
 
   // Actions for My Account Page
   getMyAccountActions(): MyAccountActions {
-    return this.myAccountActions;
+    return this.baseAction = new MyAccountActions(this.page);
   }
 }
