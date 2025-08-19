@@ -3,22 +3,21 @@ import { BaseAction } from "../common/baseAction";
 import { AccountSuccessPage } from "../pages/accountSuccessPage";
 
 export class AccountSuccessActions extends BaseAction {
-    private accountSuccessPage: AccountSuccessPage;
     
     constructor(page: Page) {
         super(page);
-        this.accountSuccessPage = new AccountSuccessPage(page);
+        this.basePage = new AccountSuccessPage(page);
     }
 
      getAccountSuccessPage(): AccountSuccessPage {
-        return this.accountSuccessPage;
+        return this.basePage as AccountSuccessPage;
     }
     
     async getSuccessMessage(): Promise<string> {
-        return await this.accountSuccessPage.getSuccessMessage();
+        return await this.getAccountSuccessPage().getSuccessMessage();
     }
     
     async clickContinueButton(): Promise<void> {
-        await this.accountSuccessPage.continueButton.click();
+        await this.getAccountSuccessPage().continueButton.click();
     }
 }
