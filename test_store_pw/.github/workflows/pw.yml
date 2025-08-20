@@ -29,18 +29,15 @@ jobs:
         retention-days: 7
     
   deploy-report:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    needs: test
+    if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    name: Deploy to GitHub Pages
     steps:
-    - name: Download Allure Report
-      uses: actions/download-artifact@v4
-      with:
-        name: allure-report
-        path: allure-report
-    - name: Deploy Allure Report to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./allure-report
-        publish_branch: gh-pages
+      - name: Deploy Allure Report
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: allure-report
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
