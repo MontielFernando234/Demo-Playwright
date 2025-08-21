@@ -26,7 +26,7 @@ test.describe('Products test suite',()=>{
             });
         });
 
-    test.only('Add first product from home page',async({page})=>{
+    test('Add first product from home page',async({page})=>{
         await test.step('User add first product',async()=>{
             await pm.getProductPageActions().addFirstProductToCart();
         });

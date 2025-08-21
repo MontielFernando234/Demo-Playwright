@@ -37,7 +37,7 @@ jobs:
       run: |
         npm install -g allure-commandline
         cd test_store_pw
-        allure generate ./allure-results -o ./allure-report --clean
+        allure generate ./allure-results -o ./allure-report --single-file
       if: always()
     
     - name: Upload allure report
