@@ -168,10 +168,8 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             body: `## 🎭 Playwright Test Results - Full Suite
-          
-📊 **[Ver Reporte Completo](${reportUrl})**
-
-*Suite completa ejecutada por ser PR a main*`
+          📊 **[Ver Reporte Completo](${reportUrl})**
+          *Suite completa ejecutada por ser PR a main*`
           });
 
   notify-push:
