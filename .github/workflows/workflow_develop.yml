@@ -1,0 +1,177 @@
+name: Playwright Tests by push in development braches
+on: 
+  push:
+    branches-ignore: [main]  # Cualquier rama EXCEPTO main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run-all: ${{ steps.decision.outputs.run-all }}
+      test-files: ${{ steps.decision.outputs.test-files }}
+      strategy: ${{ steps.decision.outputs.strategy }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Detect changed files and decide strategy
+      id: decision
+      run: |
+        echo "🔍 Analyzing changes for development branch..."
+        
+        # Detectar archivos cambiados
+        CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+        echo "Changed files: $CHANGED_FILES"
+        
+        # Solo ejecutar todo si cambió configuración crítica de Playwright
+        if echo "$CHANGED_FILES" | grep -E "(playwright.config|\.github/workflows)"; then
+          echo "⚙️ Critical config changed - Running ALL tests"
+          echo "run-all=true" >> $GITHUB_OUTPUT
+          echo "test-files=" >> $GITHUB_OUTPUT
+          echo "strategy=critical-config" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Detectar tests específicos que cambiaron (incluyendo archivos relacionados)
+        CHANGED_TESTS=""
+        AREAS_CHANGED=""
+        
+        # Cart area - tests + support files relacionados
+        if echo "$CHANGED_FILES" | grep -E "(test_store_pw/tests/cart/|pages/.*cart|support/.*cart|actions/.*cart)"; then
+          CHANGED_TESTS="$CHANGED_TESTS test_store_pw/tests/cart/"
+          AREAS_CHANGED="$AREAS_CHANGED cart"
+        fi
+        
+        # Checkout area - tests + support files relacionados  
+        if echo "$CHANGED_FILES" | grep -E "(test_store_pw/tests/checkout/|pages/.*checkout|support/.*checkout|actions/.*checkout)"; then
+          CHANGED_TESTS="$CHANGED_TESTS test_store_pw/tests/checkout/"
+          AREAS_CHANGED="$AREAS_CHANGED checkout"
+        fi
+        
+        # Login area - tests + support files relacionados
+        if echo "$CHANGED_FILES" | grep -E "(test_store_pw/tests/login/|pages/.*login|support/.*login|actions/.*login)"; then
+          CHANGED_TESTS="$CHANGED_TESTS test_store_pw/tests/login/"
+          AREAS_CHANGED="$AREAS_CHANGED login"
+        fi
+        
+        # Products area - tests + support files relacionados
+        if echo "$CHANGED_FILES" | grep -E "(test_store_pw/tests/products/|pages/.*product|support/.*product|actions/.*product)"; then
+          CHANGED_TESTS="$CHANGED_TESTS test_store_pw/tests/products/"
+          AREAS_CHANGED="$AREAS_CHANGED products"
+        fi
+        
+        if [ -n "$CHANGED_TESTS" ]; then
+          echo "🎯 Running tests for affected areas: $AREAS_CHANGED"
+          echo "📁 Test paths: $CHANGED_TESTS"
+          echo "run-all=false" >> $GITHUB_OUTPUT
+          echo "test-files=$CHANGED_TESTS" >> $GITHUB_OUTPUT
+          echo "strategy=targeted:$AREAS_CHANGED" >> $GITHUB_OUTPUT
+        else
+          echo "🤷 No test-related changes detected"
+          echo "💡 Changed files don't seem to affect any test areas"
+          echo "🚫 Skipping test execution"
+          echo "run-all=skip" >> $GITHUB_OUTPUT
+          echo "test-files=" >> $GITHUB_OUTPUT
+          echo "strategy=skip-no-tests" >> $GITHUB_OUTPUT
+        fi
+
+  test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.run-all != 'skip'
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+        cache: 'npm'
+        cache-dependency-path: './test_store_pw/package-lock.json'
+    
+    - name: Install dependencies
+      run: |
+        cd test_store_pw
+        npm ci
+    
+    - name: Install Playwright Browsers
+      run: |
+        cd test_store_pw
+        npx playwright install --with-deps
+    
+    - name: Run All Tests
+      if: needs.detect-changes.outputs.run-all == 'true'
+      run: |
+        cd test_store_pw
+        echo "🚀 Running FULL test suite (reason: ${{ needs.detect-changes.outputs.strategy }})"
+        npx playwright test --project=chromium --reporter=allure-playwright
+      continue-on-error: true
+    
+    - name: Run Specific Tests
+      if: needs.detect-changes.outputs.run-all == 'false'
+      run: |
+        cd test_store_pw
+        echo "🎯 Running targeted tests (strategy: ${{ needs.detect-changes.outputs.strategy }})"
+        echo "📁 Test paths: ${{ needs.detect-changes.outputs.test-files }}"
+        npx playwright test ${{ needs.detect-changes.outputs.test-files }} --project=chromium --reporter=allure-playwright
+      continue-on-error: true
+    
+    - name: Generate Allure report
+      run: |
+        npm install -g allure-commandline
+        cd test_store_pw
+        allure generate ./allure-results -o ./allure-report --single-file
+      if: always()
+    
+    - name: Upload report artifact
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: dev-report-${{ github.ref_name }}-${{ github.run_id }}
+        path: test_store_pw/allure-report/
+        retention-days: 5
+    
+    - name: Post commit status
+      if: always()
+      run: |
+        STRATEGY="${{ needs.detect-changes.outputs.strategy }}"
+        
+        if [ "${{ needs.detect-changes.outputs.run-all }}" = "skip" ]; then
+          echo "⏭️ Tests SKIPPED - No test-related changes detected"
+          echo "📝 Strategy: $STRATEGY" 
+          echo "💡 Only configuration changes (playwright.config) trigger full test runs"
+          echo "🎯 Only test files and their related support files trigger targeted runs"
+        else
+          TEST_RESULT="${{ job.status }}"
+          if [ "$TEST_RESULT" = "success" ]; then
+            echo "✅ Tests PASSED - Strategy: $STRATEGY"
+          else
+            echo "❌ Tests FAILED - Strategy: $STRATEGY"
+          fi
+          echo "📋 Download report from Actions artifacts"
+        fi
+        
+        echo "🔗 Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  
+  notify-skip:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: needs.detect-changes.outputs.run-all == 'skip'
+    steps:
+    - name: Notify skip
+      run: |
+        echo "⏭️ TESTS SKIPPED"
+        echo "🔍 Analysis: ${{ needs.detect-changes.outputs.strategy }}"
+        echo ""
+        echo "ℹ️  Tests only run when:"
+        echo "   • Test files change (test_store_pw/tests/)"
+        echo "   • Related support files change (pages/*area*, support/*area*, actions/*area*)"
+        echo "   • Critical config changes (playwright.config, workflows)"
+        echo ""
+        echo "💡 This saves CI resources and provides faster feedback!"
