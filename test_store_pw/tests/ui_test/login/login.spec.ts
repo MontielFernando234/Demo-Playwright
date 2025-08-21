@@ -1,13 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {PageManager} from '../../../support/pageManager';
 import {Urls} from '../../../support/urls';
-/*
-    Test Case: Login with valid credentials
-    Description: This test case verifies that a user can log in with valid credentials.
-    email: userteststore.qaa@yopmail.com
-    username: johndoeTestQAA
-    password: Test1234!
- */
 
     test.describe('Login test suite',()=>{
         let pm : PageManager;
