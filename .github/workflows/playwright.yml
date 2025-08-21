@@ -4,6 +4,17 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Permisos necesarios para GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Solo permitir una ejecución concurrente de deploy
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   test:
     timeout-minutes: 60
@@ -40,10 +51,45 @@ jobs:
         allure generate ./allure-results -o ./allure-report --single-file
       if: always()
     
-    - name: Upload allure report
+    - name: Upload allure report artifact
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: allure-report
         path: test_store_pw/allure-report/
         retention-days: 7
+    
+    - name: Upload to GitHub Pages
+      uses: actions/upload-pages-artifact@v3
+      if: always()
+      with:
+        path: test_store_pw/allure-report/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
+    
+    - name: Comment PR with report link
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request' && always()
+      with:
+        script: |
+          const reportUrl = '${{ steps.deployment.outputs.page_url }}';
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `🎭 **Playwright Test Results**\n\n📊 [Ver Reporte de Allure](${reportUrl})\n\n*El reporte estará disponible en unos minutos.*`
+          });
+    
+    - name: Output report URL
+      run: |
+        echo "🎉 Reporte desplegado en: ${{ steps.deployment.outputs.page_url }}"
