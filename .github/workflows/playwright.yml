@@ -1,9 +1,9 @@
-name: Playwright Tests - Smart with Github Pages
+name: Playwright Tests - Changes to main branch or PR
 on: 
   push:
-    branches-ignore: [main]  # Cualquier rama excepto main
+    branches: [main]         # Deploy solo cuando se hace merge a main
   pull_request:
-    branches: [main]         # Solo PRs hacia main
+    branches: [main]         # Tests en PRs hacia main
   workflow_dispatch:
 
 permissions:
@@ -18,6 +18,7 @@ jobs:
     outputs:
       run-all: ${{ steps.decision.outputs.run-all }}
       test-files: ${{ steps.decision.outputs.test-files }}
+      should-deploy: ${{ steps.decision.outputs.should-deploy }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -28,61 +29,28 @@ jobs:
       run: |
         echo "🔍 Analyzing changes..."
         
+        # Si es push a main, siempre ejecutar todo y deployar
+        if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          echo "🚀 Push to main - Running ALL tests and deploying"
+          echo "run-all=true" >> $GITHUB_OUTPUT
+          echo "test-files=" >> $GITHUB_OUTPUT
+          echo "should-deploy=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Si es PR, ejecutar todo pero NO deployar
         if [ "${{ github.event_name }}" = "pull_request" ]; then
-          echo "🔄 PR to main - Running ALL tests"
+          echo "🔄 PR to main - Running ALL tests (no deploy)"
           echo "run-all=true" >> $GITHUB_OUTPUT
           echo "test-files=" >> $GITHUB_OUTPUT
+          echo "should-deploy=false" >> $GITHUB_OUTPUT
           exit 0
         fi
         
-        # Para push a otras ramas, detectar cambios específicos
-        CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
-        echo "Changed files: $CHANGED_FILES"
-        
-        # Si cambió configuración → todo
-        if echo "$CHANGED_FILES" | grep -E "(playwright.config|package\.json|\.github/workflows)"; then
-          echo "⚙️ Config changed - Running ALL tests"
-          echo "run-all=true" >> $GITHUB_OUTPUT
-          echo "test-files=" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-        
-        # Detectar tests específicos que cambiaron
-        CHANGED_TESTS=""
-        
-        if echo "$CHANGED_FILES" | grep -q "test_store_pw/tests/cart/"; then
-          CHANGED_TESTS="$CHANGED_TESTS test_store_pw/tests/cart/"
-        fi
-        
-        if echo "$CHANGED_FILES" | grep -q "test_store_pw/tests/checkout/"; then
-          CHANGED_TESTS="$CHANGED_TESTS test_store_pw/tests/checkout/"
-        fi
-        
-        if echo "$CHANGED_FILES" | grep -q "test_store_pw/tests/login/"; then
-          CHANGED_TESTS="$CHANGED_TESTS test_store_pw/tests/login/"
-        fi
-        
-        if echo "$CHANGED_FILES" | grep -q "test_store_pw/tests/products/"; then
-          CHANGED_TESTS="$CHANGED_TESTS test_store_pw/tests/products/"
-        fi
-        
-        # Si cambió algo en support/, pages/, actions/ → ejecutar todo
-        if echo "$CHANGED_FILES" | grep -E "(support/|pages/|actions/)"; then
-          echo "🔧 Core files changed - Running ALL tests"
-          echo "run-all=true" >> $GITHUB_OUTPUT
-          echo "test-files=" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-        
-        if [ -n "$CHANGED_TESTS" ]; then
-          echo "🎯 Running specific tests: $CHANGED_TESTS"
-          echo "run-all=false" >> $GITHUB_OUTPUT
-          echo "test-files=$CHANGED_TESTS" >> $GITHUB_OUTPUT
-        else
-          echo "🤷 No relevant changes - Running login tests as smoke"
-          echo "run-all=false" >> $GITHUB_OUTPUT
-          echo "test-files=test_store_pw/tests/login/" >> $GITHUB_OUTPUT
-        fi
+        # Para otros casos (workflow_dispatch, etc.)
+        echo "run-all=true" >> $GITHUB_OUTPUT
+        echo "test-files=" >> $GITHUB_OUTPUT
+        echo "should-deploy=false" >> $GITHUB_OUTPUT
 
   test:
     needs: detect-changes
@@ -134,21 +102,21 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: allure-report
+        name: allure-report-${{ github.run_id }}
         path: test_store_pw/allure-report/
         retention-days: 7
     
-    # Solo deployar a Pages si es PR a main
+    # Solo preparar para Pages si debe deployar
     - name: Upload to GitHub Pages
       uses: actions/upload-pages-artifact@v3
-      if: always() && github.event_name == 'pull_request'
+      if: always() && needs.detect-changes.outputs.should-deploy == 'true'
       with:
         path: test_store_pw/allure-report/
 
   deploy:
-    needs: test
+    needs: [detect-changes, test]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' #always() && github.event_name == 'pull_request'
+    if: always() && needs.detect-changes.outputs.should-deploy == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -156,37 +124,38 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
-    
+
+  notify-pr:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
     - name: Comment on PR
       uses: actions/github-script@v7
       with:
         script: |
-          const reportUrl = '${{ steps.deployment.outputs.page_url }}';
+          const runId = '${{ github.run_id }}';
+          const testResult = '${{ needs.test.result }}';
+          const emoji = testResult === 'success' ? '✅' : '❌';
           
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: `## 🎭 Playwright Test Results - Full Suite
-          📊 **[Ver Reporte Completo](${reportUrl})**
-          *Suite completa ejecutada por ser PR a main*`
+            body: '## 🎭 Playwright Test Results - PR Validation\n\n' + emoji + ' **Tests Status**: ' + testResult + '\n\n📋 **[Ver Artifacts](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + runId + ')**\n\n*Los reportes se publicarán en GitHub Pages cuando se haga merge a main*'
           });
 
-  notify-push:
-    needs: [detect-changes, test]
+  notify-deploy:
+    needs: [deploy, test]
     runs-on: ubuntu-latest
-    if: always() && github.event_name == 'push'
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-    - name: Notify push results
+    - name: Notify deployment
       run: |
-        if [ "${{ needs.detect-changes.outputs.run-all }}" = "true" ]; then
-          echo "🔄 Full suite completed for config changes"
-        else
-          echo "🎯 Selective tests completed: ${{ needs.detect-changes.outputs.test-files }}"
-        fi
-        
+        echo "🚀 Deployment completed!"
+        echo "📊 Report URL: ${{ needs.deploy.outputs.page_url }}"
         if [ "${{ needs.test.result }}" = "success" ]; then
           echo "✅ All tests passed!"
         else
-          echo "❌ Some tests failed. Check artifacts for details."
+          echo "❌ Some tests failed. Check the report."
         fi
