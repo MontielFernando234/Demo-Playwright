@@ -2,7 +2,7 @@ import {expect, test} from '@playwright/test';
 import {Urls} from '../../../support/urls';
 import {PageManager} from '../../../support/pageManager';
 import {AccountData} from '../../../support/interface/accountData';
-import {faker} from '@faker-js/faker';
+import { User_Generator } from '../../../support/data_generator/user_generator';
 
 test.describe('Signup Tests', () => {
     let pageManager: PageManager;
@@ -15,28 +15,9 @@ test.describe('Signup Tests', () => {
     });
 
     test('Signup with full form', async ({page}) => {
+      const ug = new User_Generator();
 
-      const fn = faker.person.firstName();
-
-      const accountData : AccountData = {
-        firstName: fn,
-        lastName: faker.person.lastName(),
-        email: faker.internet.email(),
-        telephone: faker.phone.number({style : 'international'}),
-          fax: faker.phone.number({style : 'international'}),
-          company: faker.company.name(),
-          address1: faker.location.streetAddress(),
-          address2: faker.location.secondaryAddress(),
-          city: faker.location.city(),
-          country: 'United States',
-          region: 'California',
-          postcode: '90001',
-          username: faker.internet.username({firstName:faker.person.firstName(), lastName:faker.person.lastName()}),
-          password: 'Test1234!',
-          confirmPassword: 'Test1234!',
-          subscribe: true,
-          privacyPolicy: true,
-      };
+      const accountData : AccountData = ug.generateUser();
 
       await test.step('User expect title page is Create account',async()=>{
         await expect(pageManager.getCreateAccountPageActions().getCreateAccountPage().title).toHaveText('Create Account');
@@ -71,7 +52,7 @@ test.describe('Signup Tests', () => {
       await test.step('User validate title page text and subtitle',async()=>{
         await expect(pageManager.getMyAccountActions().getMyAccountPage().title).toHaveText(' My Account');
 
-        await expect(pageManager.getMyAccountActions().getMyAccountPage().subtitle).toHaveText(fn);
+        await expect(pageManager.getMyAccountActions().getMyAccountPage().subtitle).toHaveText(accountData.firstName);
       });
   });
 });
