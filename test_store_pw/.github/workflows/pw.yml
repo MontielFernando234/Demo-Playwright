@@ -1,52 +1,25 @@
-name: Playwright Tests with Allure Report
-
-on: [push]
+name: Playwright Tests
+on: [push,pull request]
 
 jobs:
-  build:
+  test:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        browser: [chromium]
-    
     steps:
     - uses: actions/checkout@v4
-    
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
-        cache: 'npm'
-    
     - name: Install dependencies
       run: npm ci
-    
     - name: Install Playwright Browsers
-      run: npx playwright install --with-deps ${{ matrix.browser }}
-    
+      run: npx playwright install --with-deps
     - name: Run Playwright tests
-      run: npx playwright test --project=${{ matrix.browser }} --reporter=line,allure-playwright
-      continue-on-error: true
+      run: npx playwright test --project=chromium --reporter=allure-playwright
+      run : allure generate ./allure-results -o ./allure-report --single-report
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
       with:
-        ref: gh_pages
-        path: gh_pages
-      
-    - name: Generate report
-      run: allure generate ./allure-results -o ./allure-report --single-report
-    
-    - name: Generate Allure Report
-      uses: simple-elf/allure-report-action@master
-      if: always()
-      with:
-        allure_results: allure-results
-        allure_report: allure-report
-        gh_pages: gh-pages
-        allure_history: allure-history
-    
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      if: always()
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: gh_pages
-        destination_dir: allure-history
+        name: allure-report
+        path: allure-report/
+        retention-days: 7
