@@ -8,9 +8,6 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./test_store_pw
     steps:
     - uses: actions/checkout@v4
     
@@ -18,23 +15,29 @@ jobs:
       with:
         node-version: lts/*
         cache: 'npm'
+        cache-dependency-path: './test_store_pw/package-lock.json'
     
     - name: Install dependencies
-      run: npm install
+      run: |
+        cd test_store_pw
+        npm ci
     
     - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+      run: |
+        cd test_store_pw
+        npx playwright install --with-deps
     
     - name: Run Playwright tests
-      run: npx playwright test --project=chromium --reporter=allure-playwright
+      run: |
+        cd test_store_pw
+        npx playwright test --project=chromium --reporter=allure-playwright
       continue-on-error: true
     
-    - name: Install Allure CLI
-      run: npm install -g allure-commandline
-      if: always()
-    
-    - name: Generate Allure report
-      run: allure generate ./allure-results -o ./allure-report --clean
+    - name: Install Allure CLI and Generate report
+      run: |
+        npm install -g allure-commandline
+        cd test_store_pw
+        allure generate ./allure-results -o ./allure-report --clean
       if: always()
     
     - name: Upload allure report
@@ -42,5 +45,5 @@ jobs:
       if: always()
       with:
         name: allure-report
-        path: allure-report/
+        path: test_store_pw/allure-report/
         retention-days: 7
