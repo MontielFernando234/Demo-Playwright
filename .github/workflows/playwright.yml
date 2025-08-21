@@ -148,7 +148,7 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: always() && github.event_name == 'pull_request'
+    if: github.ref == 'refs/heads/main' #always() && github.event_name == 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
