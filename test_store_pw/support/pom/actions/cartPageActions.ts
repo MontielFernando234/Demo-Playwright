@@ -12,10 +12,13 @@ export class CartPageActions extends BaseAction{
     }
 
     async deleteAllCart() : Promise<void>{
-        const listButonDelete = await this.getCartPage().deleteButtonItemProductList.all();
 
-        for (const item of listButonDelete){
-            item.click({force:true});
-        }
+        if(!await this.getCartPage().cartEmpty.isVisible()){
+            const listButonDelete = await this.getCartPage().deleteButtonItemProductList.all();
+
+            for (const item of listButonDelete){
+                item.click({force:true});
+            }
+        }else console.info('The cart is empty!!!');
     }
 }
